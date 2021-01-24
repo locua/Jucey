@@ -50,6 +50,15 @@ private:
     double phase;
     double dphase;
 
+    // Audioformatmanager
+    AudioFormatManager formatManager;
+
+    std::unique_ptr<AudioFormatReaderSource> readerSource;
+
+    AudioTransportSource transportSource;
+
+    bool playing;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

@@ -46,6 +46,19 @@ MainComponent::MainComponent()
     volumeSlider.addListener(this);
     track2mix.addListener(this);
     track1mix.addListener(this);
+
+
+    formatManager.registerBasicFormats();
+
+    // // list basic formats
+    // for (int i=0;i<formatManager.getNumKnownFormats(); i++){
+    //     std::string s = formatManager.getKnownFormat(i)->getFormatName().toStdString();
+    //     std::cout << i << " " << s << std::endl;
+    // }
+
+    playing = false;
+
+        
 }
 
 MainComponent::~MainComponent()
@@ -66,7 +79,43 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     // For more details, see the help for AudioProcessor::prepareToPlay()
     phase = 0.0;
     dphase = 0.01;
-}
+
+    URL audioURL{"file:///home/louca/Desktop/NSOL.mp3"};
+    
+    transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
+
+    AudioFormatReader* reader = formatManager.createReaderFor (audioURL.createInputStream (false));
+
+    // if(reader!=nullptr)
+    // {
+    //     // Exception safe local scope smart pointer variable
+    //     std::unique_ptr<AudioFormatReaderSource> newSource (new AudioFormatReaderSource (reader, true));
+        
+    //     // Object level scope source 
+    //     transportSource.setSource ( newSource.get(), 0, nullptr, reader->sampleRate);
+
+    //     // Handing over object to readerSource
+    //     readerSource.reset (newSource.release());
+
+    //     transportSource.start();
+    // } 
+    // else 
+    // {
+    //     std::cout << "Something went wrong loading the file" << std::endl;
+    // }
+
+    if (reader != nullptr)
+    {
+        std::unique_ptr<AudioFormatReaderSource> newSource (new AudioFormatReaderSource (reader, true));
+        transportSource.setSource ( newSource.get(), 0, nullptr, reader->sampleRate);
+        readerSource.reset (newSource.release());
+    }
+    else
+    {
+        std::cout << "Something went wrong loading the file " << std::endl;
+    }
+
+};
 
 void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
 {
@@ -79,22 +128,31 @@ void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& buffe
 
     // bufferToFill.clearActiveBufferRegion();
 
+    /* BASIC SYNTHESIS */
 
-    auto* leftChan  = bufferToFill.buffer->getWritePointer(0,bufferToFill.startSample);
-    auto* rightChan = bufferToFill.buffer->getWritePointer(1,bufferToFill.startSample);
+    // auto* leftChan  = bufferToFill.buffer->getWritePointer(0,bufferToFill.startSample);
+    // auto* rightChan = bufferToFill.buffer->getWritePointer(1,bufferToFill.startSample);
 
-    for(auto i=0; i < bufferToFill.numSamples; ++i)
+    // for(auto i=0; i < bufferToFill.numSamples; ++i)
+    // {
+    //     // double sample = rand.nextDouble() * 0.25; // random
+    //     // double sample = fmod(phase, 0.2); // saw tooth
+    //     double sample = sin(phase)*0.1; // sine wave
+
+    //     leftChan[i] = sample;
+    //     rightChan[i] = sample;
+
+    //     phase+=dphase;
+    // }
+
+    /* Playing a file */
+
+    if(!playing)
     {
-        // double sample = rand.nextDouble() * 0.25; // random
-        // double sample = fmod(phase, 0.2); // saw tooth
-        double sample = sin(phase)*0.1; // sine wave
-
-        leftChan[i] = sample;
-        rightChan[i] = sample;
-
-        phase+=dphase;
+        bufferToFill.clearActiveBufferRegion();
+        return;
     }
-
+    transportSource.getNextAudioBlock (bufferToFill);
 
 }
 
@@ -104,6 +162,7 @@ void MainComponent::releaseResources()
     // restarted due to a setting change.
 
     // For more details, see the help for AudioProcessor::releaseResources()
+    transportSource.releaseResources();
 }
 
 //==============================================================================
@@ -150,6 +209,10 @@ void MainComponent::buttonClicked(Button* button)
     if (button==&playButton)
     {
         std::cout << "play button was clicked" << std::endl;
+        playing=true;
+        dphase=0;
+        transportSource.setPosition(0);
+        transportSource.start();
     }
     else if(button==&stopButton)
     {
@@ -161,8 +224,8 @@ void MainComponent::sliderValueChanged (Slider *slider)
 {
     if(slider==&volumeSlider)
     {
-        // std::cout << "vol slider " << slider->getValue() << std::endl;
-        dphase = volumeSlider.getValue()*0.01;
+        std::cout << "vol slider " << slider->getValue() << std::endl;
+        // dphase = volumeSlider.getValue()*0.01; // modulation for synthesis
     }
     else if(slider==&track1mix)
     {
