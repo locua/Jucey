@@ -17,7 +17,7 @@ MainComponent::MainComponent()
     else
     {
         // Specify the number of input and output channels that we want to open
-        setAudioChannels (2, 2);
+        setAudioChannels (0, 2);
     }
 
     addAndMakeVisible(playButton);
@@ -64,30 +64,36 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     // but be careful - it will be called on the audio thread, not the GUI thread.
 
     // For more details, see the help for AudioProcessor::prepareToPlay()
+    phase = 0.0;
+    dphase = 0.01;
 }
 
 void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
 {
     // Your audio-processing code goes here!
 
-
-
     // For more details, see the help for AudioProcessor::getNextAudioBlock()
 
     // Right now we are not producing any data, in which case we need to clear the buffer
     // (to prevent the output of random noise)
+
+    // bufferToFill.clearActiveBufferRegion();
+
 
     auto* leftChan  = bufferToFill.buffer->getWritePointer(0,bufferToFill.startSample);
     auto* rightChan = bufferToFill.buffer->getWritePointer(1,bufferToFill.startSample);
 
     for(auto i=0; i < bufferToFill.numSamples; ++i)
     {
-        double sample = rand.nextDouble() * 0.25;
+        // double sample = rand.nextDouble() * 0.25; // random
+        // double sample = fmod(phase, 0.2); // saw tooth
+        double sample = sin(phase)*0.1; // sine wave
+
         leftChan[i] = sample;
         rightChan[i] = sample;
-    }
 
-    // bufferToFill.clearActiveBufferRegion();
+        phase+=dphase;
+    }
 
 
 }
@@ -155,7 +161,8 @@ void MainComponent::sliderValueChanged (Slider *slider)
 {
     if(slider==&volumeSlider)
     {
-        std::cout << "vol slider " << slider->getValue() << std::endl;
+        // std::cout << "vol slider " << slider->getValue() << std::endl;
+        dphase = volumeSlider.getValue()*0.01;
     }
     else if(slider==&track1mix)
     {
