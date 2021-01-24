@@ -44,6 +44,9 @@ private:
     Slider track1mix;
     Slider track2mix;
 
+    // Audio stuff
+    Random rand;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
