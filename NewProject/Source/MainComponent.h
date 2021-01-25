@@ -34,8 +34,13 @@ public:
 private:
     //==============================================================================
     // Your private member variables go here...
+
+
+
     TextButton playButton{"PLAY"};
     TextButton stopButton{"STOP"};
+    TextButton loadButton{"Load"};
+
     Slider volumeSlider;
     Toolbar toolBar1;
     // WebBrowserComponent browser;
@@ -56,9 +61,11 @@ private:
     std::unique_ptr<AudioFormatReaderSource> readerSource;
 
     AudioTransportSource transportSource;
+    ResamplingAudioSource resampleSource{&transportSource, false, 2};
 
     bool playing;
 
+    void loadURL(URL audioURL);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
