@@ -25,7 +25,6 @@ MainComponent::MainComponent()
     addAndMakeVisible(loadButton);
 
     getLookAndFeel().setColour(juce::Slider::textBoxTextColourId, juce::Colours::red);
-
     
     // addAndMakeVisible(toolBar1);
     // addAndMakeVisible(browser);
@@ -36,10 +35,14 @@ MainComponent::MainComponent()
     addAndMakeVisible(volumeSlider);
     addAndMakeVisible(track1mix);
     addAndMakeVisible(track2mix);
+    addAndMakeVisible(speedSlider);
 
     getLookAndFeel().setColour(juce::Slider::textBoxTextColourId, juce::Colours::red);
+
+    volumeSlider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     track1mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     track2mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
+    speedSlider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
 
     // listeners
     playButton.addListener(this);
@@ -48,18 +51,17 @@ MainComponent::MainComponent()
     volumeSlider.addListener(this);
     track2mix.addListener(this);
     track1mix.addListener(this);
-
+    speedSlider.addListener(this);
 
     formatManager.registerBasicFormats();
 
-    // // list basic formats
-    // for (int i=0;i<formatManager.getNumKnownFormats(); i++){
-    //     std::string s = formatManager.getKnownFormat(i)->getFormatName().toStdString();
-    //     std::cout << i << " " << s << std::endl;
-    // }
+    volumeSlider.setRange(0.0, 1.0);
 
-    playing = false;
-
+    // list basic formats
+    for (int i=0;i<formatManager.getNumKnownFormats(); i++){
+        std::string s = formatManager.getKnownFormat(i)->getFormatName().toStdString();
+        std::cout << i << " " << s << std::endl;
+    }
         
 }
 
@@ -81,33 +83,17 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     // For more details, see the help for AudioProcessor::prepareToPlay()
     phase = 0.0;
     dphase = 0.01;
+    
+    transportSource.prepareToPlay(
+        samplesPerBlockExpected, 
+        sampleRate);
+
+    resampleSource.prepareToPlay(
+        samplesPerBlockExpected, 
+        sampleRate);
 
     // URL audioURL{"file:///home/louca/Desktop/Weeping.wav"};
-    
-    transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
-    resampleSource.prepareToPlay(samplesPerBlockExpected, samplesPerBlockExpected);
-
     // AudioFormatReader* reader = formatManager.createReaderFor (audioURL.createInputStream (false));
-    // // AudioFormatReader *reader = formatManager.createReaderFor(File("/home/louca/Desktop/Weeping.wav"));
-
-    // if(reader!=nullptr)
-    // {
-    //     // Exception safe local scope smart pointer variable
-    //     std::unique_ptr<AudioFormatReaderSource> newSource (new AudioFormatReaderSource (reader, true));
-        
-    //     // Object level scope source 
-    //     transportSource.setSource ( newSource.get(), 0, nullptr, reader->sampleRate);
-
-    //     // Handing over object to readerSource
-    //     readerSource.reset (newSource.release());
-
-    //     transportSource.start();
-    // } 
-    // else 
-    // {
-    //     std::cout << "Something went wrong loading the file" << std::endl;
-    // }
-
 
     // if (reader != nullptr)
     // {
@@ -119,7 +105,6 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     // {
     //     std::cout << "Something went wrong loading the file " << std::endl;
     // }
-
 }
 
 
@@ -153,13 +138,8 @@ void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& buffe
 
     /* Playing a file */
 
-    if(!playing)
-    {
-        bufferToFill.clearActiveBufferRegion();
-        return;
-    }
-    transportSource.getNextAudioBlock (bufferToFill);
-
+    // transportSource.getNextAudioBlock (bufferToFill);
+    resampleSource.getNextAudioBlock (bufferToFill);
 }
 
 void MainComponent::releaseResources()
@@ -179,7 +159,7 @@ void MainComponent::paint (juce::Graphics& g)
 
     // You can add your drawing code here!
 
-    g.fillAll(juce::Colours::azure);
+    // g.fillAll(juce::Colours::azure);
 
     
 }
@@ -194,14 +174,13 @@ void MainComponent::resized()
 
     playButton.setBounds(0,0,colW, rowH);
     volumeSlider.setBounds(0,rowH, getWidth(), rowH);
-
     audioVis.setBounds(0, rowH*2, getWidth(), rowH);
     track1mix.setBounds(0, rowH*3, colW, rowH);
     track2mix.setBounds(colW, rowH*3, colW, rowH);
-
     stopButton.setBounds(colW, 0, colW, rowH);
-
     loadButton.setBounds(0, rowH*4, colW, rowH);
+    speedSlider.setBounds(colW, rowH*4, colW, rowH);
+
     // disk1
     //chooser1.
     // toolBar1.setBounds(0, rowH*2, getWidth(), rowH);
@@ -217,18 +196,19 @@ void MainComponent::buttonClicked(Button* button)
     if (button==&playButton)
     {
         std::cout << "play button was clicked" << std::endl;
-        playing=true;
-        dphase=0;
-        transportSource.setPosition(0);
+        // playing=true;
+        // dphase=0;
+        // transportSource.setPosition(0);
         transportSource.start();
     }
     if(button==&stopButton)
     {
         std::cout << "stop button clickeed" << std::endl;
+        transportSource.stop();
     }
     if(button==&loadButton)
     {
-        std::cout << "load button clickeed" << std::endl;
+        // std::cout << "load button clickeed" << std::endl;
         FileChooser chooser{"Select a file"};
 
         if(chooser.browseForFileToOpen())
@@ -242,36 +222,42 @@ void MainComponent::sliderValueChanged (Slider *slider)
 {
     if(slider==&volumeSlider)
     {
-        std::cout << "vol slider " << slider->getValue() << std::endl;
+        // std::cout << "vol slider " << slider->getValue() << std::endl;
         // dphase = volumeSlider.getValue()*0.01; // modulation for synthesis
+        transportSource.setGain(slider->getValue());
     }
-    else if(slider==&track1mix)
+    if(slider==&track1mix)
     {
         std::cout << "track1 slider " << slider->getValue() << std::endl;
     }
-    else if(slider==&track2mix)
+    if(slider==&track2mix)
     {
         std::cout << "track1 slider " << slider->getValue() << std::endl;
     }
-    
+    if(slider==&speedSlider)
+    {
+        // std::cout << "speed slider " << slider->getValue() << std::endl;
+        resampleSource.setResamplingRatio(slider->getValue());
+    }
 
 }
 
 void MainComponent::loadURL(URL audioURL)
 {  
-    AudioFormatReader* reader = formatManager.createReaderFor (audioURL.createInputStream (false));
+    std::cout << audioURL.toString(false) << std::endl;
 
+    auto* reader = formatManager.createReaderFor (audioURL.createInputStream (false));
     if(reader!=nullptr)
     {
         // Exception safe local scope smart pointer variable
         std::unique_ptr<AudioFormatReaderSource> newSource (new AudioFormatReaderSource (reader, true));
-        
         // Object level scope source 
         transportSource.setSource ( newSource.get(), 0, nullptr, reader->sampleRate);
-
         // Handing over object to readerSource
         readerSource.reset (newSource.release());
-
-        transportSource.start();
     } 
+    else
+    {
+        std::cout << "there was a problem loading the file" << std::endl;
+    }
 }

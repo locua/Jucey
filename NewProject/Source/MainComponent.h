@@ -42,6 +42,8 @@ private:
     TextButton loadButton{"Load"};
 
     Slider volumeSlider;
+    Slider speedSlider;
+    
     Toolbar toolBar1;
     // WebBrowserComponent browser;
     AudioVisualiserComponent audioVis{1};
@@ -62,8 +64,6 @@ private:
 
     AudioTransportSource transportSource;
     ResamplingAudioSource resampleSource{&transportSource, false, 2};
-
-    bool playing;
 
     void loadURL(URL audioURL);
 
