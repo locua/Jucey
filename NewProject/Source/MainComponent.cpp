@@ -37,7 +37,7 @@ MainComponent::MainComponent()
     addAndMakeVisible(track2mix);
     addAndMakeVisible(speedSlider);
 
-    getLookAndFeel().setColour(juce::Slider::textBoxTextColourId, juce::Colours::red);
+    getLookAndFeel().setColour(juce::Slider::textBoxTextColourId, juce::Colours::palevioletred);
 
     volumeSlider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     track1mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
@@ -175,15 +175,18 @@ void MainComponent::resized()
     // update their positions.
     double rowH = getHeight()/5;
     double colW = getWidth()/2;
+    double srowH = rowH/5;
+    
 
-    playButton.setBounds(0,0,colW, rowH);
-    volumeSlider.setBounds(0,rowH, getWidth(), rowH);
+    playButton.setBounds(0,0,getWidth(), srowH);
+    stopButton.setBounds(0, srowH, getWidth(), srowH);
+    loadButton.setBounds(0, srowH*2, getWidth(), srowH);
+
+    volumeSlider.setBounds(0,rowH, colW, rowH);
     audioVis.setBounds(0, rowH*2, getWidth(), rowH);
     track1mix.setBounds(0, rowH*3, colW, rowH);
     track2mix.setBounds(colW, rowH*3, colW, rowH);
-    stopButton.setBounds(colW, 0, colW, rowH);
-    loadButton.setBounds(0, rowH*4, colW, rowH);
-    speedSlider.setBounds(colW, rowH*4, colW, rowH);
+    speedSlider.setBounds(colW, rowH, colW, rowH);
 
     // disk1
     //chooser1.
