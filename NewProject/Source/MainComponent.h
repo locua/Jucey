@@ -46,7 +46,7 @@ private:
     
     Toolbar toolBar1;
     // WebBrowserComponent browser;
-    AudioVisualiserComponent audioVis{1};
+    AudioVisualiserComponent audioVis{2};
 
     Slider track1mix;
     Slider track2mix;

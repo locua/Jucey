@@ -56,12 +56,15 @@ MainComponent::MainComponent()
     formatManager.registerBasicFormats();
 
     volumeSlider.setRange(0.0, 1.0);
+    speedSlider.setRange(0.5, 10.0);
 
     // list basic formats
     for (int i=0;i<formatManager.getNumKnownFormats(); i++){
         std::string s = formatManager.getKnownFormat(i)->getFormatName().toStdString();
         std::cout << i << " " << s << std::endl;
     }
+
+    audioVis.setSamplesPerBlock(16);
         
 }
 
@@ -140,6 +143,7 @@ void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& buffe
 
     // transportSource.getNextAudioBlock (bufferToFill);
     resampleSource.getNextAudioBlock (bufferToFill);
+    audioVis.pushBuffer(bufferToFill);
 }
 
 void MainComponent::releaseResources()
