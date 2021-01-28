@@ -2,6 +2,9 @@
 
 //==============================================================================
 MainComponent::MainComponent()
+    : state(Stopped),
+      thumbnailCache (5),                            // [4]
+      thumbnail (512, formatManager, thumbnailCache)
 {
     // Make sure you set the size of the component after
     // you add any child components.
@@ -20,6 +23,8 @@ MainComponent::MainComponent()
         setAudioChannels (0, 2);
     }
 
+    formatManager.registerBasicFormats();
+
     addAndMakeVisible(playButton);
     addAndMakeVisible(stopButton);
     addAndMakeVisible(loadButton);
@@ -36,6 +41,7 @@ MainComponent::MainComponent()
     addAndMakeVisible(track1mix);
     addAndMakeVisible(track2mix);
     addAndMakeVisible(speedSlider);
+    // addAndMakeVisible()
 
     getLookAndFeel().setColour(juce::Slider::textBoxTextColourId, juce::Colours::palevioletred);
 
@@ -44,16 +50,26 @@ MainComponent::MainComponent()
     track2mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     speedSlider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
 
-    // listeners
     playButton.addListener(this);
+    playButton.setButtonText ("play");
+    playButton.setColour (juce::TextButton::buttonColourId, juce::Colours::green);
+    playButton.setEnabled(false);
+
     stopButton.addListener(this);
+    stopButton.setButtonText("Stop");
+    stopButton.setColour (juce::TextButton::buttonColourId, juce::Colours::red);
+    stopButton.setEnabled (false);
+
     loadButton.addListener(this);
+    loadButton.setButtonText("Open...");
+
     volumeSlider.addListener(this);
     track2mix.addListener(this);
     track1mix.addListener(this);
     speedSlider.addListener(this);
+    thumbnail.addChangeListener(this);
 
-    formatManager.registerBasicFormats();
+    transportSource.addChangeListener(this);
 
     volumeSlider.setRange(0.0, 1.0);
     speedSlider.setRange(0.5, 10.0);
@@ -65,6 +81,11 @@ MainComponent::MainComponent()
     }
 
     audioVis.setSamplesPerBlock(16);
+
+    // changeState(Stopped);
+
+    std::cout << state << std::endl;
+    
         
 }
 
@@ -91,9 +112,9 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
         samplesPerBlockExpected, 
         sampleRate);
 
-    resampleSource.prepareToPlay(
-        samplesPerBlockExpected, 
-        sampleRate);
+    // resampleSource.prepareToPlay(
+    //     samplesPerBlockExpected, 
+    //     sampleRate);
 
     // URL audioURL{"file:///home/louca/Desktop/Weeping.wav"};
     // AudioFormatReader* reader = formatManager.createReaderFor (audioURL.createInputStream (false));
@@ -141,9 +162,9 @@ void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& buffe
 
     /* Playing a file */
 
-    // transportSource.getNextAudioBlock (bufferToFill);
-    resampleSource.getNextAudioBlock (bufferToFill);
-    audioVis.pushBuffer(bufferToFill);
+    transportSource.getNextAudioBlock (bufferToFill);
+    // resampleSource.getNextAudioBlock (bufferToFill);
+    // audioVis.pushBuffer(bufferToFill);
 }
 
 void MainComponent::releaseResources()
@@ -165,7 +186,14 @@ void MainComponent::paint (juce::Graphics& g)
 
     // g.fillAll(juce::Colours::azure);
 
-    
+    double rowH = getHeight()/5;
+    juce::Rectangle<int> thumbnailBounds(0, rowH*2, getWidth(), rowH);
+
+    if(thumbnail.getNumChannels()==0)
+        paintIfNoFileLoaded(g, thumbnailBounds);
+    else
+        paintIfFileLoaded(g, thumbnailBounds);
+
 }
 
 void MainComponent::resized()
@@ -183,7 +211,7 @@ void MainComponent::resized()
     loadButton.setBounds(0, srowH*2, getWidth(), srowH);
 
     volumeSlider.setBounds(0,rowH, colW, rowH);
-    audioVis.setBounds(0, rowH*2, getWidth(), rowH);
+    // audioVis.setBounds(0, rowH*2, getWidth(), rowH);
     track1mix.setBounds(0, rowH*3, colW, rowH);
     track2mix.setBounds(colW, rowH*3, colW, rowH);
     speedSlider.setBounds(colW, rowH, colW, rowH);
@@ -206,12 +234,28 @@ void MainComponent::buttonClicked(Button* button)
         // playing=true;
         // dphase=0;
         // transportSource.setPosition(0);
-        transportSource.start();
+        // transportSource.start();
+        std::cout << state << std::endl;
+
+        if ((state == Stopped) || (state == Paused))
+        {
+            changeState (Starting);
+            
+        }
+        else if (state == Playing){
+            changeState (Pausing);
+            std::cout << state << std::endl;
+        }
+
     }
     if(button==&stopButton)
     {
         std::cout << "stop button clickeed" << std::endl;
-        transportSource.stop();
+        // transportSource.stop();
+        if (state == Paused)
+            changeState (Stopped);
+        else
+            changeState (Stopping);
     }
     if(button==&loadButton)
     {
@@ -220,7 +264,7 @@ void MainComponent::buttonClicked(Button* button)
 
         if(chooser.browseForFileToOpen())
         {
-            loadURL(URL{chooser.getResult()});
+            loadURL(URL{chooser.getResult()}, chooser.getResult());
         }
     }
 }
@@ -249,7 +293,7 @@ void MainComponent::sliderValueChanged (Slider *slider)
 
 }
 
-void MainComponent::loadURL(URL audioURL)
+void MainComponent::loadURL(URL audioURL, File file)
 {  
     std::cout << audioURL.toString(false) << std::endl;
 
@@ -261,10 +305,50 @@ void MainComponent::loadURL(URL audioURL)
         // Object level scope source 
         transportSource.setSource ( newSource.get(), 0, nullptr, reader->sampleRate);
         // Handing over object to readerSource
+        thumbnail.setSource (new juce::FileInputSource (file));
         readerSource.reset (newSource.release());
+
+        playButton.setEnabled(true);
     } 
     else
     {
         std::cout << "there was a problem loading the file" << std::endl;
     }
+}
+
+void MainComponent::changeListenerCallback (juce::ChangeBroadcaster* source) 
+{
+    if (source == &transportSource) 
+    {
+        if(transportSource.isPlaying()){
+            std::cout << "im playingnow" << std::endl;
+            changeState(Playing);
+        }
+        else if ((state == Stopping) || (state == Playing))
+            changeState (Stopped);
+        else if (Pausing == state)
+            changeState (Paused); 
+    }
+    if (source == &thumbnail)       thumbnailChanged();
+}
+
+void MainComponent::paintIfNoFileLoaded (juce::Graphics& g, const juce::Rectangle<int>& thumbnailBounds)
+{
+    g.setColour (juce::Colours::darkgrey);
+    g.fillRect (thumbnailBounds);
+    g.setColour (juce::Colours::white);
+    g.drawFittedText ("No File Loaded", thumbnailBounds, juce::Justification::centred, 1);
+}
+
+
+ void MainComponent::paintIfFileLoaded (juce::Graphics& g, const juce::Rectangle<int>& thumbnailBounds)
+ {
+    g.setColour (juce::Colours::white);
+    g.fillRect (thumbnailBounds);
+    g.setColour (juce::Colours::red);                               // [8]
+    thumbnail.drawChannels (g,                                      // [9]
+                                thumbnailBounds,
+                                0.0,                                    // start time
+                                thumbnail.getTotalLength(),             // end time
+                                1.0f);                                  // vertical zoom
 }

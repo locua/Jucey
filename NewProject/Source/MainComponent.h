@@ -11,7 +11,8 @@ using namespace juce;
 */
 class MainComponent  : public juce::AudioAppComponent,
                        public Button::Listener,
-                       public Slider::Listener
+                       public Slider::Listener,
+                       private ChangeListener
 {
 public:
     //==============================================================================
@@ -34,19 +35,32 @@ public:
 private:
     //==============================================================================
     // Your private member variables go here...
+    enum TransportState
+    {
+        Stopped,
+        Starting,
+        Playing,
+        Pausing,
+        Paused,
+        Stopping
+    };
 
 
+    void paintIfNoFileLoaded (juce::Graphics& g, const juce::Rectangle<int>& thumbnailBounds);
+    void paintIfFileLoaded (juce::Graphics& g, const juce::Rectangle<int>& thumbnailBounds);
 
-    TextButton playButton{"PLAY"};
-    TextButton stopButton{"STOP"};
-    TextButton loadButton{"Load"};
+    TextButton playButton;
+    TextButton stopButton;
+    TextButton loadButton;
 
     Slider volumeSlider;
     Slider speedSlider;
-    
+
     Toolbar toolBar1;
     // WebBrowserComponent browser;
     AudioVisualiserComponent audioVis{2};
+    AudioThumbnailCache thumbnailCache;
+    AudioThumbnail thumbnail;
 
     Slider track1mix;
     Slider track2mix;
@@ -64,8 +78,66 @@ private:
 
     AudioTransportSource transportSource;
     ResamplingAudioSource resampleSource{&transportSource, false, 2};
+    TransportState state;  
 
-    void loadURL(URL audioURL);
+    void loadURL(URL audioURL, File file);
+    void changeListenerCallback (juce::ChangeBroadcaster* source) override;
 
+    void transportSourceChanged()
+    {
+        changeState (transportSource.isPlaying() ? Playing : Stopped);
+    }
+    void thumbnailChanged()
+    {
+        repaint();
+    }
+        void changeState (TransportState newState)
+    {
+        if (state != newState)
+        {
+            state = newState;
+
+            switch (state)
+            {
+                case Stopped:
+                    playButton.setButtonText ("Play");
+                    stopButton.setButtonText ("Stop");
+                    stopButton.setEnabled (false);
+                    transportSource.setPosition (0.0);
+                    break;
+ 
+                case Starting:
+                    transportSource.start();
+                    break;
+ 
+                case Playing:
+                    playButton.setButtonText ("Pause");
+                    stopButton.setButtonText ("Stop");
+                    stopButton.setEnabled (true);
+                    break;
+ 
+                case Pausing:
+                    transportSource.stop();
+                    break;
+ 
+                case Paused:
+                    playButton.setButtonText ("Resume");
+                    stopButton.setButtonText ("Return to Zero");
+                    break;
+ 
+                case Stopping:
+                    transportSource.stop();
+                    break;
+
+                default:
+                    jassertfalse;
+                    break;
+            }
+        }
+    }
+
+
+
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
