@@ -46,7 +46,7 @@ MainComponent::MainComponent()
     getLookAndFeel().setColour(juce::Slider::textBoxTextColourId, juce::Colours::palevioletred);
 
     volumeSlider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-    track1mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
+    // track1mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     track2mix.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     speedSlider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
 
@@ -85,6 +85,9 @@ MainComponent::MainComponent()
     // changeState(Stopped);
 
     std::cout << state << std::endl;
+
+    // start timer
+    startTimer(40);
     
         
 }
@@ -279,11 +282,13 @@ void MainComponent::sliderValueChanged (Slider *slider)
     }
     if(slider==&track1mix)
     {
-        std::cout << "track1 slider " << slider->getValue() << std::endl;
+        // std::cout << "track1 slider " << transportSource.getCurrentPosition() << std::endl;
+        transportSource.setPosition(slider->getValue());
+
     }
     if(slider==&track2mix)
     {
-        std::cout << "track1 slider " << slider->getValue() << std::endl;
+        std::cout << "track2 slider " << slider->getValue() << std::endl;
     }
     if(slider==&speedSlider)
     {
@@ -307,6 +312,8 @@ void MainComponent::loadURL(URL audioURL, File file)
         // Handing over object to readerSource
         thumbnail.setSource (new juce::FileInputSource (file));
         readerSource.reset (newSource.release());
+        // set range of track 1 mixer in between 0 and length
+        track1mix.setRange(0, transportSource.getLengthInSeconds());
 
         playButton.setEnabled(true);
     } 
@@ -338,6 +345,8 @@ void MainComponent::paintIfNoFileLoaded (juce::Graphics& g, const juce::Rectangl
     g.fillRect (thumbnailBounds);
     g.setColour (juce::Colours::white);
     g.drawFittedText ("No File Loaded", thumbnailBounds, juce::Justification::centred, 1);
+
+    
 }
 
 
@@ -346,9 +355,23 @@ void MainComponent::paintIfNoFileLoaded (juce::Graphics& g, const juce::Rectangl
     g.setColour (juce::Colours::white);
     g.fillRect (thumbnailBounds);
     g.setColour (juce::Colours::red);                               // [8]
+    auto aLen = (float) thumbnail.getTotalLength();
     thumbnail.drawChannels (g,                                      // [9]
                                 thumbnailBounds,
                                 0.0,                                    // start time
-                                thumbnail.getTotalLength(),             // end time
+                                aLen,             // end time
                                 1.0f);                                  // vertical zoom
+    
+    g.setColour(juce::Colours::green);
+    auto audioPosition = (float) transportSource.getCurrentPosition();
+    auto drawPosition = (audioPosition / aLen * (float) thumbnailBounds.getWidth()
+                        + (float) thumbnailBounds.getX());
+    g.drawLine (drawPosition, (float)thumbnailBounds.getY(), drawPosition,
+                (float) thumbnailBounds.getBottom(), 2.0f);
+    
+}
+
+void MainComponent::timerCallback() 
+{
+    repaint();
 }

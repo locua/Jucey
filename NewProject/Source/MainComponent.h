@@ -12,7 +12,8 @@ using namespace juce;
 class MainComponent  : public juce::AudioAppComponent,
                        public Button::Listener,
                        public Slider::Listener,
-                       private ChangeListener
+                       private ChangeListener,
+                       private Timer
 {
 public:
     //==============================================================================
@@ -81,7 +82,12 @@ private:
     TransportState state;  
 
     void loadURL(URL audioURL, File file);
+
+    
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
+
+    // Timer callback
+    void timerCallback() override;
 
     void transportSourceChanged()
     {
