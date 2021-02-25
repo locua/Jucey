@@ -72,7 +72,7 @@ MainComponent::MainComponent()
     transportSource.addChangeListener(this);
 
     volumeSlider.setRange(0.0, 1.0);
-    speedSlider.setRange(0.5, 10.0);
+    speedSlider.setRange(0.01, 10.0);
 
     // list basic formats
     for (int i=0;i<formatManager.getNumKnownFormats(); i++){
